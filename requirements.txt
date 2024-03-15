@@ -1,0 +1,9 @@
+numpy
+pandas
+matplotlib
+scikit-learn
+split-folders
+opencv-python
+tensorflow
+mediapipe
+keras-tuner
