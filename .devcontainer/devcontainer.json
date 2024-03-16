@@ -1,0 +1,21 @@
+{
+    "name": "Tensorflow Jupyter Lab",
+    "dockerComposeFile": "../docker-compose.yaml",
+    "service": "jupyter-lab",
+    "workspaceFolder": "/gesture_tracker",
+    "postCreateCommand": "python -m ipykernel install --user --name=tensorflow",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "github.github-vscode-theme",
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "eamodio.gitlens",
+                "github.copilot",
+                "ms-toolsai.jupyter",
+                "mechatroner.rainbow-csv",
+                "ms-azuretools.vscode-docker"
+            ]
+        }
+    }
+}

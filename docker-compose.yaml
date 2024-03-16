@@ -1,0 +1,16 @@
+version: "3.8"
+services:
+  jupyter-lab:
+    build: .
+    image: gesture_tracker:latest 
+    ports:
+      - "8888:8888"
+    volumes:
+      - .:/gesture_tracker
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
