@@ -2,11 +2,12 @@ import os
 import cv2
 import mediapipe as mp
 import json
+import splitfolders
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 RAW_DATA_PATH = os.path.join(SCRIPT_DIR, "../data/raw")
 PROCESSED_DATA_PATH = os.path.join(SCRIPT_DIR, "../data/processed")
-
+SPLIT_DATA_PATH = os.path.join(SCRIPT_DIR, "../data/split")
 
 def process_data():
     mp_hands = mp.solutions.hands.Hands()
@@ -29,20 +30,22 @@ def process_data():
                 if not os.path.exists(processed_path):
                     os.makedirs(processed_path)
                 
-                landmarks_data = []
                 hand_landmarks = landmarks.multi_hand_landmarks[0]  # for each hand
                 hand_data = []
                 for landmark in hand_landmarks.landmark:
                     landmark_dict = {'x': landmark.x, 'y': landmark.y, 'z': landmark.z}
                     hand_data.append(landmark_dict)
-
-                landmarks_data.append(hand_data)
             
                 processed_image_path = os.path.join(processed_path, image.split('.')[0] + '.json')
                 with open(processed_image_path, 'w') as f:
-                    json.dump(landmarks_data, f, indent=4)
+                    json.dump(hand_data, f, indent=4)
 
 
 if __name__ == "__main__":
+    print("Processing data...")
     process_data()
     print("Data processing complete!")
+    if not os.path.exists(SPLIT_DATA_PATH):
+        os.makedirs(SPLIT_DATA_PATH)
+    splitfolders.ratio(PROCESSED_DATA_PATH, output=SPLIT_DATA_PATH, seed=1337, ratio=(.7, .15, .15))
+    print("Data split complete!")
