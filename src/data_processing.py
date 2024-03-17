@@ -19,10 +19,9 @@ def process_data():
 
         for image in os.listdir(subcategory_path):
             image_path = os.path.join(subcategory_path, image)
-            if os.path.exists(os.path.join(PROCESSED_DATA_PATH, subcategory, image)):
-                continue
 
             img = cv2.imread(image_path)
+            img = cv2.flip(img, 1)
             landmarks = mp_hands.process(img)
 
             if landmarks.multi_hand_landmarks:
