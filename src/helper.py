@@ -32,18 +32,16 @@ def get_screen_resolution():
 
 def process_frame(frame):
     """
-    Process the frame using the mediapipe hands model. Will flip the frame and convert it to RGB.
+    Process the frame to get the hand landmarks.
     
     args: frame: the frame to process
-
-    returns: results: the results from the mediapipe hands model
-             frame: the processed frame
+    returns: results: the hand landmarks
     """
-    frame = cv2.flip(frame, 1)
-    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    flipped_frame = cv2.flip(frame, 1)
+    frame_rgb = cv2.cvtColor(flipped_frame, cv2.COLOR_BGR2RGB)
     results = hands.process(frame_rgb)
 
-    return results, frame
+    return results, flipped_frame
 
 
 def draw_landmarks(frame, hand_landmarks):
@@ -68,7 +66,14 @@ def draw_landmarks(frame, hand_landmarks):
     
 
 def compute_min_max(data_dir):
-    """Compute the minimum and maximum values of the data."""
+    """
+    Compute the minimum and maximum values of the data in the data directory.
+
+    args: data_dir: the directory containing the data
+
+    returns: all_data: a list of all the data in the data directory
+                min_val: the minimum value of the data
+    """
     min_val = float('inf')
     max_val = float('-inf')
 
@@ -86,6 +91,7 @@ def compute_min_max(data_dir):
             min_val = min(min_val, min(data))
             max_val = max(max_val, max(data))
             all_data.extend(data)
+
     return data, min_val, max_val
 
 
@@ -93,7 +99,7 @@ data, min_val, max_val = compute_min_max(processed_dir)
 scaler = MinMaxScaler(feature_range=(0, 1))
 scaler = scaler.fit(np.array(data).reshape(-1, 1))
 
-def lable_dict(data_dir):
+def label_dict(data_dir):
     """
     Create a dictionary of labels to indices and indices to labels.
     When training the model, the labels must be converted to indices.
@@ -108,4 +114,5 @@ def lable_dict(data_dir):
     subdirs.sort()
     label_to_index = {os.path.basename(label): i for i, label in enumerate(subdirs)}
     index_to_label = {i: os.path.basename(label) for label, i in label_to_index.items()}
+
     return label_to_index, index_to_label

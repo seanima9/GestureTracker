@@ -1,6 +1,6 @@
 import os
 import sys
-import multiprocessing
+from concurrent.futures import ProcessPoolExecutor
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -10,7 +10,7 @@ import pyautogui
 import numpy as np
 import tensorflow as tf
 
-from src.helper import get_screen_resolution, process_frame, draw_landmarks, lable_dict, scaler
+from src.helper import get_screen_resolution, process_frame, draw_landmarks, label_dict, scaler
 
 FRAME_WIDTH_ID = 3
 FRAME_HEIGHT_ID = 4
@@ -21,7 +21,7 @@ prev_x, prev_y = 0, 0
 screen_width, screen_height = get_screen_resolution()
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
-model = tf.keras.models.load_model(os.path.join(current_dir, "../models/model_acc_0.88_loss_0.29.h5"))
+model = tf.keras.models.load_model(os.path.join(current_dir, "../models/model_acc_0.86_loss_0.34.h5"))
 train_dir = os.path.join(current_dir, "../data/split/train")
 
 
@@ -47,11 +47,11 @@ def move_mouse(hand_landmarks):
         prev_x, prev_y = x, y  # Reset previous positions when hand is not in control position to avoid sudden jumps
         return
     
-    sensitivity = 1
+    sensitivity = 0.5
     smoothing = 0.5
 
     if middle_y > thumb_y:  # If middle finger is below thumb, increase sensitivity
-        sensitivity = 2
+        sensitivity = 1
 
     x = prev_x * smoothing + x * (1 - smoothing)
     y = prev_y * smoothing + y * (1 - smoothing)
@@ -62,7 +62,7 @@ def move_mouse(hand_landmarks):
         dx = dy = 0
 
     mouse_dx = int(dx * screen_width * sensitivity)
-    mouse_dy = int(dy * screen_height * sensitivity)
+    mouse_dy = int(dy * screen_height * sensitivity*1.4)
 
     pyautogui.move(mouse_dx, mouse_dy, duration=0.1)
 
@@ -86,7 +86,7 @@ def perform_action(hand_landmarks):
 
     input_data = np.array([processed_data])
     predictions = model.predict(input_data)
-    _, index_to_label = lable_dict(train_dir)
+    _, index_to_label = label_dict(train_dir)
     print(index_to_label)  # TODO: Remove this line
     print(predictions)  # TODO: Remove this line
 
@@ -127,38 +127,33 @@ def stream():
     frame_count = 0
     prediction_frequency = 10  # Make a prediction every 10 frames
 
-    pool = multiprocessing.Pool(processes=6)
+    with ProcessPoolExecutor(max_workers=2) as executor_move, ProcessPoolExecutor(max_workers=1) as executor_action:
+        while cap.isOpened():
+            success, frame = cap.read()
+            if not success:
+                continue
 
-    while cap.isOpened():
-        success, frame = cap.read()
-        if not success:
-            continue
+            results, frame = process_frame(frame)
+            if results.multi_hand_landmarks:
+                for hand_landmarks in results.multi_hand_landmarks:
+                    draw_landmarks(frame, hand_landmarks)
+                    
+                    executor_move.submit(move_mouse, hand_landmarks)
+                    
+                    if frame_count % prediction_frequency == 0:
+                        executor_action.submit(perform_action, hand_landmarks)
+                    
+                    break
+            
+            frame_count += 1
 
-        results, frame = process_frame(frame)
+            cv2.imshow("Hand Tracking", frame)
 
-        if results.multi_hand_landmarks:
-            for hand_landmarks in results.multi_hand_landmarks:
-                draw_landmarks(frame, hand_landmarks)
-                move_mouse(hand_landmarks)
-                
-                if frame_count % prediction_frequency == 0:
-                    pool.apply_async(perform_action, (hand_landmarks,))
-                
+            if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
-        
-        frame_count += 1
-
-        cv2.imshow("Hand Tracking", frame)
-
-        if cv2.waitKey(1) & 0xFF == ord("q"):
-            break
-
-    pool.close()
-    pool.join()
 
     cap.release()
     cv2.destroyAllWindows()
-
 
 if __name__ == "__main__":
     stream()
