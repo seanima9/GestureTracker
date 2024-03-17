@@ -93,7 +93,6 @@ data, min_val, max_val = compute_min_max(processed_dir)
 scaler = MinMaxScaler(feature_range=(0, 1))
 scaler = scaler.fit(np.array(data).reshape(-1, 1))
 
-
 def lable_dict(data_dir):
     """
     Create a dictionary of labels to indices and indices to labels.

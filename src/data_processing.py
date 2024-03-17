@@ -9,6 +9,7 @@ RAW_DATA_PATH = os.path.join(SCRIPT_DIR, "../data/raw")
 PROCESSED_DATA_PATH = os.path.join(SCRIPT_DIR, "../data/processed")
 SPLIT_DATA_PATH = os.path.join(SCRIPT_DIR, "../data/split")
 
+
 def process_data():
     mp_hands = mp.solutions.hands.Hands()
 
@@ -40,11 +41,17 @@ def process_data():
                     json.dump(hand_data, f, indent=4)
 
 
-if __name__ == "__main__":
+def main():
     print("Processing data...")
     process_data()
     print("Data processing complete!")
+
     if not os.path.exists(SPLIT_DATA_PATH):
         os.makedirs(SPLIT_DATA_PATH)
+
     splitfolders.ratio(PROCESSED_DATA_PATH, output=SPLIT_DATA_PATH, seed=1337, ratio=(.7, .15, .15))
     print("Data split complete!")
+
+
+if __name__ == "__main__":
+    main()

@@ -6,14 +6,17 @@ import pyautogui
 import numpy as np
 import tensorflow as tf
 
-from helper import get_screen_resolution, process_frame, draw_landmarks, lable_dict, scaler
+from src.helper import get_screen_resolution, process_frame, draw_landmarks, lable_dict, scaler
 
 FRAME_WIDTH_ID = 3
 FRAME_HEIGHT_ID = 4
 PRIMARY_CAMERA_ID = 0
 pyautogui.FAILSAFE = False
 prev_x, prev_y = 0, 0
+
+screen_width, screen_height = get_screen_resolution()
 current_dir = os.path.dirname(os.path.abspath(__file__))
+
 model = tf.keras.models.load_model(os.path.join(current_dir, "../models/model_acc_0.91_loss_0.18.h5"))
 train_dir = os.path.join(current_dir, "../data/split/train")
 
@@ -99,6 +102,7 @@ def perform_action(hand_landmarks):
     else:
         print("No action")  # TODO: Remove this line
 
+
 def stream():
     """
     Stream the camera and process the frames. Will draw landmarks and move the mouse based on the hand landmarks.
@@ -149,6 +153,6 @@ def stream():
     cap.release()
     cv2.destroyAllWindows()
 
+
 if __name__ == "__main__":
-    screen_width, screen_height = get_screen_resolution()
     stream()
