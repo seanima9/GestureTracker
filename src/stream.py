@@ -1,4 +1,8 @@
 import os
+import sys
+import multiprocessing
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 import cv2
 import mediapipe as mp
@@ -17,7 +21,7 @@ prev_x, prev_y = 0, 0
 screen_width, screen_height = get_screen_resolution()
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
-model = tf.keras.models.load_model(os.path.join(current_dir, "../models/model_acc_0.91_loss_0.18.h5"))
+model = tf.keras.models.load_model(os.path.join(current_dir, "../models/model_acc_0.88_loss_0.29.h5"))
 train_dir = os.path.join(current_dir, "../data/split/train")
 
 
@@ -47,7 +51,7 @@ def move_mouse(hand_landmarks):
     smoothing = 0.5
 
     if middle_y > thumb_y:  # If middle finger is below thumb, increase sensitivity
-        sensitivity = 3
+        sensitivity = 2
 
     x = prev_x * smoothing + x * (1 - smoothing)
     y = prev_y * smoothing + y * (1 - smoothing)
@@ -78,16 +82,15 @@ def perform_action(hand_landmarks):
 
     processed_data = scaler.transform(np.array(data).reshape(-1, 1))
     processed_data = processed_data.flatten().tolist()
-    threshold = 0.5
+    threshold = 0.7
 
     input_data = np.array([processed_data])
     predictions = model.predict(input_data)
-    max_prediction = np.max(predictions[0])
     _, index_to_label = lable_dict(train_dir)
     print(index_to_label)  # TODO: Remove this line
     print(predictions)  # TODO: Remove this line
 
-    if max_prediction > threshold:
+    if np.max(predictions[0]) > threshold:
         predicted_class = index_to_label[np.argmax(predictions[0])]
     else:
         predicted_class = None
@@ -124,6 +127,8 @@ def stream():
     frame_count = 0
     prediction_frequency = 10  # Make a prediction every 10 frames
 
+    pool = multiprocessing.Pool(processes=6)
+
     while cap.isOpened():
         success, frame = cap.read()
         if not success:
@@ -132,14 +137,12 @@ def stream():
         results, frame = process_frame(frame)
 
         if results.multi_hand_landmarks:
-            # print(results.multi_hand_landmarks)
             for hand_landmarks in results.multi_hand_landmarks:
-                # print(hand_landmarks)
                 draw_landmarks(frame, hand_landmarks)
                 move_mouse(hand_landmarks)
                 
                 if frame_count % prediction_frequency == 0:
-                    perform_action(hand_landmarks)
+                    pool.apply_async(perform_action, (hand_landmarks,))
                 
                 break
         
@@ -149,6 +152,9 @@ def stream():
 
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
+
+    pool.close()
+    pool.join()
 
     cap.release()
     cv2.destroyAllWindows()
