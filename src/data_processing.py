@@ -2,6 +2,7 @@ import os
 import cv2
 import mediapipe as mp
 import json
+import shutil
 import splitfolders
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -9,6 +10,27 @@ RAW_DATA_PATH = os.path.join(SCRIPT_DIR, "../data/raw")
 RAW_VIDEO_PATH = os.path.join(SCRIPT_DIR, "../data/raw_videos")
 PROCESSED_DATA_PATH = os.path.join(SCRIPT_DIR, "../data/processed")
 SPLIT_DATA_PATH = os.path.join(SCRIPT_DIR, "../data/split")
+
+
+def clean_directory(dir_path):
+    """
+    Delete all files and subdirectories in a directory
+
+    Args:
+    dir_path (str): path to the directory
+
+    Returns:
+    None
+    """
+    for filename in os.listdir(dir_path):
+        file_path = os.path.join(dir_path, filename)
+        try:
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+        except Exception as e:
+            print(f'Failed to delete {file_path}. Reason: {e}')
 
 
 def read_video(video_path, category):
@@ -87,7 +109,14 @@ def process_data():
 def main():
     """ 
     Read videos, process data, and split data into training, validation, and test sets
+    Cleans the directories before starting
     """
+    print("Cleaning directories...")
+    clean_directory(RAW_DATA_PATH)
+    clean_directory(PROCESSED_DATA_PATH)
+    clean_directory(SPLIT_DATA_PATH)
+    print("Directories cleaned!")
+
     print("Reading videos...")
     for video in os.listdir(RAW_VIDEO_PATH):
         video_path = os.path.join(RAW_VIDEO_PATH, video)

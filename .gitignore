@@ -2,3 +2,4 @@ gesture_env
 data/*
 .ipynb_checkpoints
 __pycache__
+hyperband/*
