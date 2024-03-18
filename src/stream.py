@@ -100,16 +100,18 @@ def perform_action(hand_landmarks):
     else:
         predicted_class = None
 
-    if predicted_class == "left_click":
-        pyautogui.click()
-        print(predicted_class)  # TODO: Remove this line
+    actions = {
+    "left_click": lambda: (print(predicted_class), pyautogui.click()),
+    "cursor": lambda: print(predicted_class),
+    "four_fingers": lambda: (print(predicted_class), pyautogui.press("4")),
+    "three_fingers": lambda: (print(predicted_class), pyautogui.press("3")),
+    "two_fingers": lambda: (print(predicted_class), pyautogui.press("2")),
+    "one_finger": lambda: (print(predicted_class), pyautogui.press("1")),
+    "fist": lambda: (print(predicted_class), pyautogui.press("enter")),
+    }
 
-    elif predicted_class == "cursor":
-        print(predicted_class)  # TODO: Remove this line
-
-    else:
-        print("No action")  # TODO: Remove this line
-
+    action = actions.get(predicted_class, lambda: print("No action"))
+    action()
 
 def stream():
     """
