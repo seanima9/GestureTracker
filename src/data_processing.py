@@ -6,11 +6,54 @@ import splitfolders
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 RAW_DATA_PATH = os.path.join(SCRIPT_DIR, "../data/raw")
+RAW_VIDEO_PATH = os.path.join(SCRIPT_DIR, "../data/raw_videos")
 PROCESSED_DATA_PATH = os.path.join(SCRIPT_DIR, "../data/processed")
 SPLIT_DATA_PATH = os.path.join(SCRIPT_DIR, "../data/split")
 
 
+def read_video(video_path, category):
+    """ 
+    Read video and save every 5th frame as an image in the raw data folder
+
+    Args:
+    video_path (str): path to the video file
+    category (str): category of the video
+    save_rate (int): save every nth frame
+
+    Returns:
+    None
+    """
+    frame_count = 0
+    save_count = 0
+    cap = cv2.VideoCapture(video_path)
+
+    frame_rate = cap.get(cv2.CAP_PROP_FPS)
+    save_rate = int(frame_rate / 5)
+
+    if not os.path.exists(os.path.join(RAW_DATA_PATH, category)):
+        os.makedirs(os.path.join(RAW_DATA_PATH, category))
+    
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+        frame_count += 1
+        if frame_count % save_rate == 0:
+            save_count += 1
+            frame_path = os.path.join(RAW_DATA_PATH, category, f"{save_count}.jpg")
+            cv2.imwrite(frame_path, frame)
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+
 def process_data():
+    """
+    Process the raw data and save the hand landmarks as a json file in the processed data folder
+
+    Returns:
+    None
+    """
     mp_hands = mp.solutions.hands.Hands()
 
     for subcategory in os.listdir(RAW_DATA_PATH):
@@ -42,6 +85,16 @@ def process_data():
 
 
 def main():
+    """ 
+    Read videos, process data, and split data into training, validation, and test sets
+    """
+    print("Reading videos...")
+    for video in os.listdir(RAW_VIDEO_PATH):
+        video_path = os.path.join(RAW_VIDEO_PATH, video)
+        category = video.split('.')[0]
+        read_video(video_path, category)
+    print("Video reading complete!")
+
     print("Processing data...")
     process_data()
     print("Data processing complete!")

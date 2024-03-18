@@ -1,5 +1,6 @@
 import os
 import sys
+import glob
 from concurrent.futures import ProcessPoolExecutor
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
@@ -19,10 +20,14 @@ pyautogui.FAILSAFE = False
 prev_x, prev_y = 0, 0
 
 screen_width, screen_height = get_screen_resolution()
-current_dir = os.path.dirname(os.path.abspath(__file__))
+WORKING_DIR = os.path.dirname(os.path.abspath(__file__))
+TRAINING_DIR = os.path.join(WORKING_DIR, "../data/split/train")
 
-model = tf.keras.models.load_model(os.path.join(current_dir, "../models/model_acc_0.86_loss_0.34.h5"))
-train_dir = os.path.join(current_dir, "../data/split/train")
+models = glob.glob(os.path.join(WORKING_DIR, "../models/*.h5"))
+if not models:
+    raise RuntimeError("No models found in the models directory")
+
+model = tf.keras.models.load_model(models[0])
 
 
 def move_mouse(hand_landmarks):
@@ -86,7 +91,7 @@ def perform_action(hand_landmarks):
 
     input_data = np.array([processed_data])
     predictions = model.predict(input_data)
-    _, index_to_label = label_dict(train_dir)
+    _, index_to_label = label_dict(TRAINING_DIR)
     print(index_to_label)  # TODO: Remove this line
     print(predictions)  # TODO: Remove this line
 
