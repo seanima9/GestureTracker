@@ -1,6 +1,7 @@
 import os
 import sys
 import glob
+import time
 from concurrent.futures import ProcessPoolExecutor
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
@@ -74,6 +75,7 @@ def move_mouse(hand_landmarks):
     prev_x, prev_y = x, y
 
 
+last_enter_time = time.time() - 1000
 def perform_action(hand_landmarks):
     """
     Gets hand landmarks, processes them, then puts them through the model to predict the action.
@@ -87,7 +89,7 @@ def perform_action(hand_landmarks):
 
     processed_data = scaler.transform(np.array(data).reshape(-1, 1))
     processed_data = processed_data.flatten().tolist()
-    threshold = 0.7
+    threshold = 0.8
 
     input_data = np.array([processed_data])
     predictions = model.predict(input_data)
@@ -107,12 +109,29 @@ def perform_action(hand_landmarks):
     "three_fingers": lambda: pyautogui.press("3"),
     "two_fingers": lambda: pyautogui.press("2"),
     "thumbs_up": lambda: pyautogui.press("1"),
-    "c_shape": lambda: pyautogui.press("enter"),
+    "c_shape": lambda: perform_enter(),
 }
 
     print(predicted_class)
     action = actions.get(predicted_class, lambda: None)
     action()
+
+
+def perform_enter():
+    """
+    Perform the "enter" action if enough time has passed since the last "enter" action.
+
+    returns None
+    """
+    global last_enter_time
+
+    cooldown = 2.0
+    current_time = time.time()
+
+    if current_time - last_enter_time > cooldown:
+        pyautogui.press("enter")
+        last_enter_time = current_time
+
 
 def stream():
     """
@@ -162,6 +181,7 @@ def stream():
 
     cap.release()
     cv2.destroyAllWindows()
+
 
 if __name__ == "__main__":
     stream()
