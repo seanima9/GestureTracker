@@ -69,14 +69,18 @@ def read_video(video_path, category):
     cv2.destroyAllWindows()
 
 
-def process_data():
+def process_data(total_images):
     """
-    Process the raw data and save the hand landmarks as a json file in the processed data folder
+    Process the raw data and save the hand landmarks as json files in the processed data folder
+
+    Args:
+    total_images (int): total number of images to process
 
     Returns:
     None
     """
     mp_hands = mp.solutions.hands.Hands()
+    count = 0
 
     for subcategory in os.listdir(RAW_DATA_PATH):
         subcategory_path = os.path.join(RAW_DATA_PATH, subcategory)
@@ -91,19 +95,26 @@ def process_data():
             landmarks = mp_hands.process(img)
 
             if landmarks.multi_hand_landmarks:
+                count += 1
+                if count >= total_images:
+                    break
+
                 processed_path = os.path.join(PROCESSED_DATA_PATH, subcategory)
                 if not os.path.exists(processed_path):
                     os.makedirs(processed_path)
                 
-                hand_landmarks = landmarks.multi_hand_landmarks[0]  # for each hand
+                hand_landmarks = landmarks.multi_hand_landmarks[0]  # Only one hand is detected
                 hand_data = []
                 for landmark in hand_landmarks.landmark:
                     landmark_dict = {'x': landmark.x, 'y': landmark.y, 'z': landmark.z}
                     hand_data.append(landmark_dict)
-            
+
                 processed_image_path = os.path.join(processed_path, image.split('.')[0] + '.json')
                 with open(processed_image_path, 'w') as f:
                     json.dump(hand_data, f, indent=4)
+        
+        if count >= total_images:
+            break
 
 
 def main():
@@ -125,7 +136,7 @@ def main():
     print("Video reading complete!")
 
     print("Processing data...")
-    process_data()
+    process_data(500)
     print("Data processing complete!")
 
     if not os.path.exists(SPLIT_DATA_PATH):
