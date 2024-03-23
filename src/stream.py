@@ -12,13 +12,28 @@ import pyautogui
 import numpy as np
 import tensorflow as tf
 
-from src.helper import get_screen_resolution, process_frame, draw_landmarks, label_dict, scaler
+from src.helper import (
+    get_screen_resolution, 
+    process_frame, 
+    draw_landmarks, 
+    label_dict, 
+    scaler
+)
 
 FRAME_WIDTH_ID = 3
 FRAME_HEIGHT_ID = 4
 PRIMARY_CAMERA_ID = 0
 pyautogui.FAILSAFE = False
 prev_x, prev_y = 0, 0
+
+# cv text settings
+PREDICTED_CLASS_POSITION = (10, 30)
+LIKELIHOOD_POSITION = (10, 60)
+FONT = cv2.FONT_HERSHEY_SIMPLEX
+FONT_SCALE = 1
+COLOR = (255, 255, 255)
+THICKNESS = 2
+LIKELIHOOD_THRESHOLD = 0.8
 
 screen_width, screen_height = get_screen_resolution()
 WORKING_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -29,7 +44,6 @@ if not models:
     raise RuntimeError("No models found in the models directory")
 
 model = tf.keras.models.load_model(models[0])
-
 
 def move_mouse(hand_landmarks):
     """
@@ -57,7 +71,7 @@ def move_mouse(hand_landmarks):
     smoothing = 0.5
 
     if middle_y > thumb_y:  # If middle finger is below thumb, increase sensitivity
-        sensitivity = 1
+        sensitivity = 1.5
 
     x = prev_x * smoothing + x * (1 - smoothing)
     y = prev_y * smoothing + y * (1 - smoothing)
@@ -80,41 +94,44 @@ def perform_action(hand_landmarks):
     """
     Gets hand landmarks, processes them, then puts them through the model to predict the action.
     Then uses the predicted action to perform the action.
-
-    args: hand_landmarks: mediapipe hand landmarks
-
-    returns None
+    args:
+        hand_landmarks: mediapipe hand landmarks
+    returns:
+        tuple: A tuple containing the predicted class and likelihood.
     """
-    data = [value for landmark in hand_landmarks.landmark for value in [landmark.x, landmark.y, landmark.z]]
-
-    processed_data = scaler.transform(np.array(data).reshape(-1, 1))
-    processed_data = processed_data.flatten().tolist()
     threshold = 0.8
-
-    input_data = np.array([processed_data])
+    data = [value for landmark in hand_landmarks.landmark for value in [landmark.x, landmark.y, landmark.z]]
+    processed_data = scaler.transform(np.array(data).reshape(-1, 3))
+    input_data = processed_data.reshape(1, 21, 3)
     predictions = model.predict(input_data)
     _, index_to_label = label_dict(TRAINING_DIR)
-    print(index_to_label)  # TODO: Remove this line
-    print(predictions)  # TODO: Remove this line
-
+    
     if np.max(predictions[0]) > threshold:
         predicted_class = index_to_label[np.argmax(predictions[0])]
+        likelihood = np.max(predictions[0])
     else:
         predicted_class = None
-
+        likelihood = 0.0  # Assign a default value when predicted_class is None
+    
     actions = {
-    "left_click": lambda: pyautogui.click(),
-    "cursor": lambda: None,
-    "four_fingers": lambda: pyautogui.press("4"),
-    "three_fingers": lambda: pyautogui.press("3"),
-    "two_fingers": lambda: pyautogui.press("2"),
-    "thumbs_up": lambda: pyautogui.press("1"),
-    "c_shape": lambda: perform_enter(),
-}
-
-    print(predicted_class)
-    action = actions.get(predicted_class, lambda: None)
-    action()
+        "left_click": lambda: pyautogui.click(),
+        "cursor": lambda: None,
+        "four_fingers": lambda: pyautogui.press("4"),
+        "three_fingers": lambda: pyautogui.press("3"),
+        "two_fingers": lambda: pyautogui.press("2"),
+        "thumbs_up": lambda: pyautogui.press("1"),
+        "c_shape": lambda: perform_enter(),
+    }
+    
+    print(f"Predicted class: {predicted_class}", end=" ")
+    if predicted_class is not None:
+        print(f"Likelihood: {likelihood*100:.2f}%")
+        action = actions.get(predicted_class, lambda: None)
+        action()
+    else:
+        print("Likelihood: N/A")
+    
+    return predicted_class, likelihood
 
 
 def perform_enter():
@@ -152,7 +169,9 @@ def stream():
     cap.set(cv2.CAP_PROP_FPS, 60)
 
     frame_count = 0
-    prediction_frequency = 10  # Make a prediction every 10 frames
+    prediction_frequency = 10 # frames
+    predicted_class = None
+    likelihood = None
 
     with ProcessPoolExecutor(max_workers=2) as executor_move, ProcessPoolExecutor(max_workers=1) as executor_action:
         while cap.isOpened():
@@ -162,20 +181,23 @@ def stream():
 
             results, frame = process_frame(frame)
             if results.multi_hand_landmarks:
-                for hand_landmarks in results.multi_hand_landmarks:
-                    draw_landmarks(frame, hand_landmarks)
-                    
-                    executor_move.submit(move_mouse, hand_landmarks)
-                    
-                    if frame_count % prediction_frequency == 0:
-                        executor_action.submit(perform_action, hand_landmarks)
-                    
-                    break
+                hand_landmarks = results.multi_hand_landmarks[0]
+                draw_landmarks(frame, hand_landmarks)
+                
+                executor_move.submit(move_mouse, hand_landmarks)
+                
+                if frame_count % prediction_frequency == 0:
+                    future = executor_action.submit(perform_action, hand_landmarks)
+                    predicted_class, likelihood = future.result()
+
+                if predicted_class is not None and likelihood > LIKELIHOOD_THRESHOLD:
+                    cv2.putText(frame, f'Predicted class: {predicted_class}',
+                                 PREDICTED_CLASS_POSITION, FONT, FONT_SCALE, COLOR, THICKNESS)
+                    cv2.putText(frame, f'Likelihood: {likelihood*100:.2f}%',
+                                 LIKELIHOOD_POSITION, FONT, FONT_SCALE, COLOR, THICKNESS)
             
             frame_count += 1
-
             cv2.imshow("Hand Tracking", frame)
-
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
 

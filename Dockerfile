@@ -5,7 +5,7 @@ WORKDIR /gesture_tracker
 
 COPY requirements.txt requirements.txt
 
-RUN pip install -r requirements.txt
+RUN pip install -r requirements.txt && apt-get update && apt-get install -y libgl1-mesa-glx
 
 EXPOSE 8888
 

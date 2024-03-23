@@ -62,6 +62,13 @@ def draw_landmarks(frame, hand_landmarks):
         connection_drawing_spec=drawing_spec
     )
 
+    x_min = int(min(landmark.x * frame.shape[1] for landmark in hand_landmarks.landmark))
+    x_max = int(max(landmark.x * frame.shape[1] for landmark in hand_landmarks.landmark))
+    y_min = int(min(landmark.y * frame.shape[0] for landmark in hand_landmarks.landmark))
+    y_max = int(max(landmark.y * frame.shape[0] for landmark in hand_landmarks.landmark))
+
+    cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
+
 
 ################################## Machine learning related functions ##################################
     
@@ -98,7 +105,7 @@ def compute_min_max(data_dir):
 
 data, min_val, max_val = compute_min_max(processed_dir)
 scaler = MinMaxScaler(feature_range=(0, 1))
-scaler = scaler.fit(np.array(data).reshape(-1, 1))
+scaler = scaler.fit(np.array(data).reshape(-1, 3))
 
 def label_dict(data_dir):
     """
@@ -133,22 +140,23 @@ def data_generator(data_dir):
     """
     subdirs = [os.path.join(data_dir, d) for d in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, d))]
     label_to_index, _ = label_dict(data_dir)
-    for subdir in subdirs:
-        data_files = [os.path.join(subdir, f) for f in os.listdir(subdir) if f.endswith('.json')]
-        
-        for data_file in data_files:
-            with open(data_file, 'r') as f:
-                data = json.load(f)
+    while True:
+        for subdir in subdirs:
+            data_files = [os.path.join(subdir, f) for f in os.listdir(subdir) if f.endswith('.json')]
+            
+            for data_file in data_files:
+                with open(data_file, 'r') as f:
+                    data = json.load(f)
 
-            data = [value for coordinate_dict in data for value in coordinate_dict.values()] 
-            data = scaler.transform(np.array(data).reshape(-1, 1))
-            data = data.flatten().tolist()
-            label_index = label_to_index[os.path.basename(os.path.dirname(data_file))]
+                data = [value for coordinate_dict in data for value in coordinate_dict.values()] 
+                data = scaler.transform(np.array(data).reshape(-1, 3))
+                data = data.reshape(21, 3)
+                label_index = label_to_index[os.path.basename(os.path.dirname(data_file))]
 
-            yield (data, tf.constant(label_index, dtype=tf.int32))
+                yield (data, tf.constant(label_index, dtype=tf.int32))
 
 
-def create_and_prepare_dataset(data_dir, batch_size, shuffle_size=1000):
+def create_and_prepare_dataset(data_dir, batch_size):
     """ 
     Create and prepare a dataset from the given data directory.
     Will shuffle and batch the dataset.
@@ -161,15 +169,18 @@ def create_and_prepare_dataset(data_dir, batch_size, shuffle_size=1000):
     Returns:
         tf.data.Dataset: The dataset containing the data.
     """
+    steps_per_epoch = get_data_size(data_dir) // batch_size
+    shuffle_size = get_data_size(data_dir)
+
     dataset = tf.data.Dataset.from_generator(
         lambda: data_generator(data_dir),
         output_signature=(
-            tf.TensorSpec(shape=(63,), dtype=tf.float32),
+            tf.TensorSpec(shape=(21,3), dtype=tf.float32),
             tf.TensorSpec(shape=(), dtype=tf.int32)
         )
     )
 
-    return dataset.shuffle(shuffle_size).batch(batch_size)
+    return dataset.shuffle(shuffle_size).batch(batch_size).take(steps_per_epoch).prefetch(tf.data.experimental.AUTOTUNE)
 
 
 def get_data_size(data):
