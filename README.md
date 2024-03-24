@@ -29,8 +29,7 @@ To set up the Gesture Tracker on your system, follow these steps:
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/seanima9/gesture-tracker.git
-```
+git clone https://github.com/seanima9/GestureTracker
 2. Navigate to the project directory:
 ```bash
 cd gesture-tracker

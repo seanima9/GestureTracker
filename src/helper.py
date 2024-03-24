@@ -126,7 +126,42 @@ def label_dict(data_dir):
     return label_to_index, index_to_label
 
 
-def data_generator(data_dir):
+################################## Data related functions ##################################
+
+
+def augment_data(data):
+    """
+    Augment the data by scaling, rotating, and adding noise to the data.
+
+    Args:
+        data (np.array): The data to augment.
+
+    Returns:
+        np.array: The augmented data.
+    """
+    min_scale_factor = 0.8
+    max_scale_factor = 1.2
+    scale_factor = np.random.uniform(min_scale_factor, max_scale_factor)
+    data *= scale_factor
+
+    max_rotation_angle = 10  # in degrees
+    angle = np.random.uniform(-max_rotation_angle, max_rotation_angle)
+    angle_rad = np.radians(angle)
+    cos_val = np.cos(angle_rad)
+    sin_val = np.sin(angle_rad)
+    rotation_matrix = np.array([[cos_val, -sin_val, 0],
+                                [sin_val, cos_val, 0],
+                                [0, 0, 1]])
+    data = np.dot(data, rotation_matrix)
+
+    noise_factor = 0.003
+    noise = np.random.normal(0, noise_factor, data.shape)
+    data += noise
+    
+    return data
+
+
+def data_generator(data_dir, augment=False):
     """ 
     Generator function that yields data and labels from the given data directory.
 
@@ -148,7 +183,11 @@ def data_generator(data_dir):
                 with open(data_file, 'r') as f:
                     data = json.load(f)
 
-                data = [value for coordinate_dict in data for value in coordinate_dict.values()] 
+                data = [value for coordinate_dict in data for value in coordinate_dict.values()]
+                if augment:
+                    data = np.array(data).reshape(21, 3)
+                    data = augment_data(data) 
+
                 data = scaler.transform(np.array(data).reshape(-1, 3))
                 data = data.reshape(21, 3)
                 label_index = label_to_index[os.path.basename(os.path.dirname(data_file))]
@@ -156,7 +195,7 @@ def data_generator(data_dir):
                 yield (data, tf.constant(label_index, dtype=tf.int32))
 
 
-def create_and_prepare_dataset(data_dir, batch_size):
+def create_and_prepare_dataset(data_dir, batch_size, augment=False):
     """ 
     Create and prepare a dataset from the given data directory.
     Will shuffle and batch the dataset.
@@ -173,7 +212,7 @@ def create_and_prepare_dataset(data_dir, batch_size):
     shuffle_size = get_data_size(data_dir)
 
     dataset = tf.data.Dataset.from_generator(
-        lambda: data_generator(data_dir),
+        lambda: data_generator(data_dir, augment),
         output_signature=(
             tf.TensorSpec(shape=(21,3), dtype=tf.float32),
             tf.TensorSpec(shape=(), dtype=tf.int32)
