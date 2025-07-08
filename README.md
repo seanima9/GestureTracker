@@ -2,19 +2,6 @@
 
 Gesture Tracker is a Python-based application that leverages computer vision and machine learning to track and recognize hand gestures in real-time. By using a camera, users can interact with their computers through intuitive hand movements, making it an innovative approach for system interaction.
 
-## Table of Contents
-
-1. [Features](#features)
-2. [Installation](#installation)
-3. [Usage](#usage)
-   - [Quick Start](#quick-start)
-   - [Data Preparation](#data-preparation)
-   - [Model Training](#model-training)
-   - [Real-time Gesture Recognition](#real-time-gesture-recognition)
-4. [Configuration](#configuration)
-5. [Contributing](#contributing)
-6. [Acknowledgments](#acknowledgments)
-
 ## Features
 
 - Real-time hand gesture recognition with the Mediapipe library.
